@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 页面编号: B-05 /settings -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>设置 - 酒店管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <style>
+        :root {
+            --primary: #0F62FE;
+            --secondary: #FF6B00;
+            --bg: #F5F7FA;
+        }
+        @supports (padding: max(0px)) {
+            .safe-top { padding-top: max(44px, env(safe-area-inset-top)); }
+            .safe-bottom { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-[system-ui]" x-data="settingsApp()">
+    <div class="min-h-screen max-w-md mx-auto bg-gray-50 flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white safe-top">
+            <div class="px-4 py-3">
+                <h1 class="text-lg font-semibold text-center">设置</h1>
+            </div>
+        </header>
+
+        <!-- 用户信息 -->
+        <div class="bg-white mt-2 px-4 py-6">
+            <div class="flex items-center">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="uil uil-user text-blue-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-800" x-text="userName"></h2>
+                    <p class="text-sm text-gray-500" x-text="userRole"></p>
+                    <p class="text-xs text-gray-400 mt-1">工号: <span x-text="userId"></span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置选项 -->
+        <main class="flex-1 pb-20">
+            <!-- 个人信息 -->
+            <div class="bg-white mt-2">
+                <h3 class="px-4 py-3 text-sm font-medium text-gray-500 bg-gray-50">个人信息</h3>
+                
+                <button 
+                    @click="goToProfile"
+                    data-testid="profile-setting"
+                    class="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 border-b border-gray-100"
+                >
+                    <div class="flex items-center">
+                        <i class="uil uil-user-circle text-gray-600 text-xl mr-3"></i>
+                        <span class="text-gray-800">个人资料</span>
+                    </div>
+                    <i class="uil uil-angle-right-b text-gray-400"></i>
+                </button>
+
+                <button 
+                    @click="goToPassword"
+                    data-testid="password-setting"
+                    class="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50"
+                >
+                    <div class="flex items-center">
+                        <i class="uil uil-lock-alt text-gray-600 text-xl mr-3"></i>
+                        <span class="text-gray-800">修改密码</span>
+                    </div>
+                    <i class="uil uil-angle-right-b text-gray-400"></i>
+                </button>
+            </div>
+
+            <!-- 应用设置 -->
+            <div class="bg-white mt-2">
+                <h3 class="px-4 py-3 text-sm font-medium text-gray-500 bg-gray-50">应用设置</h3>
+                
+                <!-- 语言选择 -->
+                <div class="px-4 py-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="uil uil-globe text-gray-600 text-xl mr-3"></i>
+                            <span class="text-gray-800">语言</span>
+                        </div>
+                        <select 
+                            x-model="language"
+                            @change="changeLanguage"
+                            data-testid="language-select"
+                            class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="zh-CN">简体中文</option>
+                            <option value="zh-TW">繁体中文</option>
+                            <option value="en">English</option>
+                            <option value="ja">日本語</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 通知设置 -->
+                <div class="px-4 py-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="uil uil-bell text-gray-600 text-xl mr-3"></i>
+                            <span class="text-gray-800">推送通知</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                x-model="notificationsEnabled"
+                                @change="toggleNotifications"
+                                class="sr-only peer"
+                            >
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 缓存管理 -->
+                <button 
+                    @click="clearCache"
+                    data-testid="clear-cache"
+                    class="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50"
+                >
+                    <div class="flex items-center">
+                        <i class="uil uil-trash-alt text-gray-600 text-xl mr-3"></i>
+                        <div class="text-left">
+                            <span class="text-gray-800 block">清除缓存</span>
+                            <span class="text-xs text-gray-500">当前缓存: <span x-text="cacheSize"></span></span>
+                        </div>
+                    </div>
+                    <i class="uil uil-angle-right-b text-gray-400"></i>
+                </button>
+            </div>
+
+            <!-- 关于 -->
+            <div class="bg-white mt-2">
+                <h3 class="px-4 py-3 text-sm font-medium text-gray-500 bg-gray-50">关于</h3>
+                
+                <div class="px-4 py-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-800">版本</span>
+                        <span class="text-gray-500">v2.0.0</span>
+                    </div>
+                </div>
+
+                <button 
+                    @click="checkUpdate"
+                    data-testid="check-update"
+                    class="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50"
+                >
+                    <div class="flex items-center">
+                        <i class="uil uil-download-alt text-gray-600 text-xl mr-3"></i>
+                        <span class="text-gray-800">检查更新</span>
+                    </div>
+                    <i class="uil uil-angle-right-b text-gray-400"></i>
+                </button>
+            </div>
+
+            <!-- 登出按钮 -->
+            <div class="px-4 mt-6">
+                <button 
+                    @click="logout"
+                    data-testid="logout-button"
+                    class="w-full py-3 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 transition-colors"
+                >
+                    <i class="uil uil-sign-out-alt mr-2"></i>
+                    退出登录
+                </button>
+            </div>
+        </main>
+
+        <!-- Bottom Tab -->
+        <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 max-w-md mx-auto safe-bottom">
+            <div class="flex justify-around py-2">
+                <button 
+                    @click="goToTasks"
+                    data-testid="tab-tasks"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600"
+                >
+                    <i class="uil uil-clipboard-notes text-2xl mb-1"></i>
+                    <span class="text-xs">任务</span>
+                </button>
+                <button 
+                    @click="goToNotifications"
+                    data-testid="tab-notifications"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600"
+                >
+                    <i class="uil uil-bell text-2xl mb-1"></i>
+                    <span class="text-xs">通知</span>
+                </button>
+                <button 
+                    data-testid="tab-settings"
+                    class="flex-1 flex flex-col items-center py-2 text-blue-600"
+                >
+                    <i class="uil uil-setting text-2xl mb-1"></i>
+                    <span class="text-xs">设置</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        function settingsApp() {
+            return {
+                userName: localStorage.getItem('user_name') || '张三',
+                userRole: '客房服务部',
+                userId: 'staff001',
+                language: 'zh-CN',
+                notificationsEnabled: true,
+                cacheSize: '12.5 MB',
+
+                changeLanguage() {
+                    localStorage.setItem('language', this.language);
+                    console.log('语言已切换到:', this.language);
+                    alert(`语言已切换到: ${this.getLanguageName(this.language)}`);
+                },
+
+                getLanguageName(code) {
+                    const languages = {
+                        'zh-CN': '简体中文',
+                        'zh-TW': '繁体中文',
+                        'en': 'English',
+                        'ja': '日本語'
+                    };
+                    return languages[code] || code;
+                },
+
+                toggleNotifications() {
+                    localStorage.setItem('notifications_enabled', this.notificationsEnabled);
+                    console.log('推送通知:', this.notificationsEnabled ? '开启' : '关闭');
+                },
+
+                clearCache() {
+                    if (confirm('确定要清除所有缓存数据吗？')) {
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        this.cacheSize = '0 MB';
+                        alert('缓存已清除');
+                    }
+                },
+
+                checkUpdate() {
+                    console.log('检查更新...');
+                    alert('当前已是最新版本');
+                },
+
+                async logout() {
+                    if (confirm('确定要退出登录吗？')) {
+                        // 清除认证信息
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('user_name');
+                        
+                        console.log('退出登录，跳转到 /login');
+                        alert('已退出登录');
+                        setTimeout(() => {
+                            window.location.href = 'B-01-login.html';
+                        }, 500);
+                    }
+                },
+
+                goToProfile() {
+                    console.log('跳转到个人资料');
+                    alert('个人资料页面（待开发）');
+                },
+
+                goToPassword() {
+                    console.log('跳转到修改密码');
+                    alert('修改密码页面（待开发）');
+                },
+
+                goToTasks() {
+                    console.log('跳转到 /tasks');
+                    window.location.href = 'B-02-tasks.html';
+                },
+
+                goToNotifications() {
+                    console.log('跳转到 /notifications');
+                    window.location.href = 'B-04-notifications.html';
+                }
+            };
+        }
+    </script>
+</body>
+</html> 

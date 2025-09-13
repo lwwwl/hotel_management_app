@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 页面编号: B-04 /notifications -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>通知中心 - 酒店管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <style>
+        :root {
+            --primary: #0F62FE;
+            --secondary: #FF6B00;
+            --bg: #F5F7FA;
+        }
+        @supports (padding: max(0px)) {
+            .safe-top { padding-top: max(44px, env(safe-area-inset-top)); }
+            .safe-bottom { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+        }
+        .swipe-item {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-[system-ui]" x-data="notificationsApp()">
+    <div class="min-h-screen max-w-md mx-auto bg-gray-50 flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white safe-top fixed top-0 left-0 right-0 max-w-md mx-auto z-10">
+            <div class="px-4 py-3 flex items-center justify-between">
+                <button 
+                    @click="goBack"
+                    data-testid="back-button"
+                    class="p-2 -ml-2 hover:bg-white/10 rounded-lg"
+                >
+                    <i class="uil uil-arrow-left text-xl"></i>
+                </button>
+                <h1 class="text-lg font-semibold">通知中心</h1>
+                <button 
+                    @click="markAllAsRead"
+                    data-testid="mark-all-read"
+                    class="text-sm text-white/80 hover:text-white"
+                >
+                    全部已读
+                </button>
+            </div>
+        </header>
+
+        <!-- 通知列表 -->
+        <main class="flex-1 pt-20 pb-20 overflow-y-auto">
+            <!-- 通知分组 - 今天 -->
+            <div x-show="todayNotifications.length > 0">
+                <h3 class="px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100">今天</h3>
+                <div class="bg-white">
+                    <template x-for="notification in todayNotifications" :key="notification.id">
+                        <div 
+                            class="relative overflow-hidden"
+                            x-data="{ swiped: false }"
+                        >
+                            <div 
+                                @click="handleNotificationClick(notification)"
+                                @touchstart="handleTouchStart($event)"
+                                @touchmove="handleTouchMove($event, notification.id)"
+                                @touchend="handleTouchEnd($event, notification.id)"
+                                :data-testid="'notification-' + notification.id"
+                                class="swipe-item px-4 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                                :class="{ 'bg-blue-50': !notification.read }"
+                            >
+                                <div class="flex items-start">
+                                    <div 
+                                        :class="{
+                                            'bg-blue-100 text-blue-600': notification.type === 'task',
+                                            'bg-orange-100 text-orange-600': notification.type === 'urgent',
+                                            'bg-green-100 text-green-600': notification.type === 'completed'
+                                        }"
+                                        class="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                                    >
+                                        <i 
+                                            :class="{
+                                                'uil-clipboard-notes': notification.type === 'task',
+                                                'uil-exclamation-triangle': notification.type === 'urgent',
+                                                'uil-check-circle': notification.type === 'completed'
+                                            }"
+                                            class="uil text-xl"
+                                        ></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-start justify-between">
+                                            <h4 class="font-medium text-gray-800" x-text="notification.title"></h4>
+                                            <span class="text-xs text-gray-500 ml-2" x-text="notification.time"></span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mt-1" x-text="notification.message"></p>
+                                        <div x-show="notification.taskId" class="mt-2">
+                                            <span class="text-xs text-blue-600">
+                                                查看任务 #<span x-text="notification.taskId"></span> →
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div x-show="!notification.read" class="ml-2">
+                                        <span class="w-2 h-2 bg-blue-600 rounded-full block"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 删除按钮 -->
+                            <button 
+                                @click="deleteNotification(notification.id)"
+                                class="absolute right-0 top-0 bottom-0 bg-red-500 text-white px-6 flex items-center"
+                                :style="{ transform: `translateX(${swiped ? '0' : '100%'})` }"
+                            >
+                                <i class="uil uil-trash-alt text-xl"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 通知分组 - 昨天 -->
+            <div x-show="yesterdayNotifications.length > 0" class="mt-2">
+                <h3 class="px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100">昨天</h3>
+                <div class="bg-white">
+                    <template x-for="notification in yesterdayNotifications" :key="notification.id">
+                        <div 
+                            @click="handleNotificationClick(notification)"
+                            :data-testid="'notification-' + notification.id"
+                            class="px-4 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                        >
+                            <div class="flex items-start">
+                                <div class="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center mr-3">
+                                    <i class="uil uil-bell text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-start justify-between">
+                                        <h4 class="font-medium text-gray-800" x-text="notification.title"></h4>
+                                        <span class="text-xs text-gray-500 ml-2" x-text="notification.time"></span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1" x-text="notification.message"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div x-show="allNotifications.length === 0" class="flex flex-col items-center justify-center h-full py-20">
+                <i class="uil uil-bell-slash text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">暂无通知</p>
+            </div>
+        </main>
+
+        <!-- Bottom Tab -->
+        <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 max-w-md mx-auto safe-bottom">
+            <div class="flex justify-around py-2">
+                <button 
+                    @click="goToTasks"
+                    data-testid="tab-tasks"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600"
+                >
+                    <i class="uil uil-clipboard-notes text-2xl mb-1"></i>
+                    <span class="text-xs">任务</span>
+                </button>
+                <button 
+                    data-testid="tab-notifications"
+                    class="flex-1 flex flex-col items-center py-2 text-blue-600"
+                >
+                    <i class="uil uil-bell text-2xl mb-1"></i>
+                    <span class="text-xs">通知</span>
+                </button>
+                <button 
+                    @click="goToSettings"
+                    data-testid="tab-settings"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600"
+                >
+                    <i class="uil uil-setting text-2xl mb-1"></i>
+                    <span class="text-xs">设置</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        // Mock数据
+        const MOCK_NOTIFICATIONS = [
+            { id: 1, type: 'task', title: '新任务分配', message: '房间101需要额外毛巾', time: '10:30', read: false, taskId: 1, date: 'today' },
+            { id: 2, type: 'urgent', title: '紧急任务', message: '房间305空调故障，请尽快处理', time: '10:25', read: false, taskId: 3, date: 'today' },
+            { id: 3, type: 'completed', title: '任务完成', message: '房间208清洁任务已完成', time: '09:45', read: true, taskId: 2, date: 'today' },
+            { id: 4, type: 'task', title: '任务更新', message: '房间412送餐任务已分配给您', time: '昨天 18:30', read: true, taskId: 4, date: 'yesterday' },
+            { id: 5, type: 'task', title: '系统通知', message: '本月绩效报告已生成', time: '昨天 17:00', read: true, date: 'yesterday' }
+        ];
+
+        function notificationsApp() {
+            return {
+                notifications: [...MOCK_NOTIFICATIONS],
+                touchStartX: 0,
+                touchEndX: 0,
+
+                get allNotifications() {
+                    return this.notifications;
+                },
+
+                get todayNotifications() {
+                    return this.notifications.filter(n => n.date === 'today');
+                },
+
+                get yesterdayNotifications() {
+                    return this.notifications.filter(n => n.date === 'yesterday');
+                },
+
+                handleNotificationClick(notification) {
+                    // 标记为已读
+                    notification.read = true;
+                    
+                    // 如果有任务ID，跳转到任务详情
+                    if (notification.taskId) {
+                        console.log(`跳转到任务详情 /task/${notification.taskId}`);
+                        window.location.href = `B-03-task-detail.html?taskId=${notification.taskId}`;
+                    }
+                    
+                    // 模拟更新已读状态
+                    console.log(`PATCH /api/notifications/${notification.id} { read: true }`);
+                },
+
+                markAllAsRead() {
+                    this.notifications.forEach(n => n.read = true);
+                    console.log('PUT /api/notifications/mark-all-read');
+                    alert('已将所有通知标记为已读');
+                },
+
+                deleteNotification(id) {
+                    this.notifications = this.notifications.filter(n => n.id !== id);
+                    console.log(`DELETE /api/notifications/${id}`);
+                },
+
+                handleTouchStart(event) {
+                    this.touchStartX = event.touches[0].clientX;
+                },
+
+                handleTouchMove(event, id) {
+                    this.touchEndX = event.touches[0].clientX;
+                    const diff = this.touchStartX - this.touchEndX;
+                    
+                    if (diff > 50) {
+                        // 左滑显示删除按钮
+                        event.currentTarget.style.transform = `translateX(-80px)`;
+                    } else if (diff < -50) {
+                        // 右滑隐藏删除按钮
+                        event.currentTarget.style.transform = `translateX(0)`;
+                    }
+                },
+
+                handleTouchEnd(event, id) {
+                    const diff = this.touchStartX - this.touchEndX;
+                    if (Math.abs(diff) < 50) {
+                        event.currentTarget.style.transform = `translateX(0)`;
+                    }
+                },
+
+                goBack() {
+                    console.log('返回上一页');
+                    history.back();
+                },
+
+                goToTasks() {
+                    console.log('跳转到 /tasks');
+                    window.location.href = 'B-02-tasks.html';
+                },
+
+                goToSettings() {
+                    console.log('跳转到 /settings');
+                    window.location.href = 'B-05-settings.html';
+                }
+            };
+        }
+    </script>
+</body>
+</html> 

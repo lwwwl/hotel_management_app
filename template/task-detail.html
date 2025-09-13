@@ -1,0 +1,268 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 页面编号: B-03 /task/:id -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>任务详情 - 酒店管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <style>
+        :root {
+            --primary: #0F62FE;
+            --secondary: #FF6B00;
+            --bg: #F5F7FA;
+        }
+        @supports (padding: max(0px)) {
+            .safe-top { padding-top: max(44px, env(safe-area-inset-top)); }
+            .safe-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-[system-ui]" x-data="taskDetailApp()">
+    <div class="min-h-screen max-w-md mx-auto bg-white flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white safe-top">
+            <div class="px-4 py-3 flex items-center justify-between">
+                <button 
+                    @click="goBack"
+                    data-testid="back-button"
+                    class="p-2 -ml-2 hover:bg-white/10 rounded-lg"
+                >
+                    <i class="uil uil-arrow-left text-xl"></i>
+                </button>
+                <h1 class="text-lg font-semibold">任务详情</h1>
+                <button 
+                    @click="showMore = !showMore"
+                    data-testid="more-button"
+                    class="p-2 -mr-2 hover:bg-white/10 rounded-lg"
+                >
+                    <i class="uil uil-ellipsis-v text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 任务信息 -->
+        <div class="p-4 border-b border-gray-100">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span 
+                            :class="{
+                                'bg-orange-100 text-orange-600': task.priority === 'high',
+                                'bg-blue-100 text-blue-600': task.priority === 'medium',
+                                'bg-gray-100 text-gray-600': task.priority === 'low'
+                            }"
+                            class="px-3 py-1 rounded-full text-sm font-medium"
+                        >
+                            <i class="uil uil-exclamation-circle mr-1" x-show="task.priority === 'high'"></i>
+                            房间 <span x-text="task.room"></span>
+                        </span>
+                        <span 
+                            :class="{
+                                'bg-orange-50 text-orange-600': task.status === 'pending',
+                                'bg-blue-50 text-blue-600': task.status === 'in_progress',
+                                'bg-green-50 text-green-600': task.status === 'completed'
+                            }"
+                            class="px-2 py-1 rounded text-xs font-medium"
+                            x-text="getStatusText(task.status)"
+                        ></span>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-800" x-text="task.title"></h2>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">预计时间</p>
+                    <p class="text-lg font-semibold text-orange-600" x-text="task.eta"></p>
+                </div>
+            </div>
+            
+            <p class="text-gray-600" x-text="task.description"></p>
+            
+            <div class="mt-4 flex items-center text-sm text-gray-500">
+                <i class="uil uil-clock mr-1"></i>
+                创建时间：<span x-text="task.createdAt"></span>
+            </div>
+        </div>
+
+        <!-- 对话历史 (模拟iframe) -->
+        <div class="flex-1 p-4 overflow-y-auto">
+            <h3 class="font-medium text-gray-800 mb-3">客人对话记录</h3>
+            <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+                <!-- 模拟聊天记录 -->
+                <div class="space-y-3">
+                    <div class="flex justify-start">
+                        <div class="bg-white rounded-lg p-3 max-w-xs shadow-sm">
+                            <p class="text-sm text-gray-500 mb-1">客服 10:25</p>
+                            <p class="text-sm">您好，有什么可以帮助您的吗？</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <div class="bg-blue-600 text-white rounded-lg p-3 max-w-xs">
+                            <p class="text-sm">我需要2条浴巾和1条面巾，谢谢</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-start">
+                        <div class="bg-white rounded-lg p-3 max-w-xs shadow-sm">
+                            <p class="text-sm text-gray-500 mb-1">客服 10:26</p>
+                            <p class="text-sm">好的，马上为您安排送到房间</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 备注区域 -->
+            <h3 class="font-medium text-gray-800 mb-3">处理备注</h3>
+            <div class="space-y-3 mb-4">
+                <template x-for="comment in task.comments" :key="comment.id">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-medium text-gray-700" x-text="comment.author"></span>
+                            <span class="text-xs text-gray-500" x-text="comment.time"></span>
+                        </div>
+                        <p class="text-sm text-gray-600" x-text="comment.text"></p>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 添加备注 -->
+            <div class="flex space-x-2">
+                <input 
+                    type="text"
+                    x-model="newComment"
+                    data-testid="comment-input"
+                    placeholder="添加备注..."
+                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                <button 
+                    @click="addComment"
+                    data-testid="add-comment"
+                    :disabled="!newComment.trim()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    发送
+                </button>
+            </div>
+        </div>
+
+        <!-- 底部操作栏 -->
+        <div class="border-t border-gray-200 p-4 safe-bottom bg-white">
+            <div class="flex space-x-3">
+                <button 
+                    x-show="task.status === 'pending'"
+                    @click="updateStatus('in_progress')"
+                    data-testid="start-task"
+                    class="flex-1 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <i class="uil uil-play mr-2"></i>
+                    开始处理
+                </button>
+                
+                <button 
+                    x-show="task.status === 'in_progress'"
+                    @click="updateStatus('completed')"
+                    data-testid="complete-task"
+                    class="flex-1 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                >
+                    <i class="uil uil-check mr-2"></i>
+                    标记完成
+                </button>
+                
+                <button 
+                    x-show="task.status === 'in_progress'"
+                    @click="pauseTask"
+                    data-testid="pause-task"
+                    class="py-3 px-4 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                    <i class="uil uil-pause"></i>
+                </button>
+            </div>
+            
+            <div x-show="task.status === 'completed'" class="text-center py-3">
+                <p class="text-green-600 font-medium">
+                    <i class="uil uil-check-circle mr-1"></i>
+                    任务已完成
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock数据
+        const MOCK_TASK = {
+            id: 1,
+            room: '101',
+            title: '需要额外毛巾',
+            description: '客人要求送2条浴巾和1条面巾到房间',
+            status: 'pending', // pending, in_progress, completed
+            priority: 'high',
+            eta: '5分钟',
+            createdAt: '2024-01-01 10:30',
+            comments: [
+                { id: 1, author: '张三', time: '10:35', text: '已准备好毛巾，准备送往房间' }
+            ]
+        };
+
+        function taskDetailApp() {
+            return {
+                task: { ...MOCK_TASK },
+                newComment: '',
+                showMore: false,
+
+                getStatusText(status) {
+                    const statusMap = {
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
+                    };
+                    return statusMap[status] || status;
+                },
+
+                async updateStatus(newStatus) {
+                    // 模拟 API 调用: PATCH /api/task/:id
+                    console.log(`PATCH /api/task/${this.task.id} { status: '${newStatus}' }`);
+                    
+                    this.task.status = newStatus;
+                    
+                    if (newStatus === 'completed') {
+                        alert('任务已标记为完成！');
+                        setTimeout(() => {
+                            this.goBack();
+                        }, 1000);
+                    } else {
+                        alert('任务状态已更新');
+                    }
+                },
+
+                pauseTask() {
+                    this.task.status = 'pending';
+                    console.log('任务已暂停');
+                },
+
+                addComment() {
+                    if (!this.newComment.trim()) return;
+                    
+                    const comment = {
+                        id: Date.now(),
+                        author: '李四',
+                        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+                        text: this.newComment
+                    };
+                    
+                    this.task.comments.push(comment);
+                    this.newComment = '';
+                    
+                    // 模拟 API 调用
+                    console.log(`POST /api/task/${this.task.id}/comments`, comment);
+                },
+
+                goBack() {
+                    console.log('返回任务列表');
+                    window.location.href = 'B-02-tasks.html';
+                }
+            };
+        }
+    </script>
+</body>
+</html> 

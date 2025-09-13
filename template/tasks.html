@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 页面编号: B-02 /tasks -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>任务列表 - 酒店管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <style>
+        :root {
+            --primary: #0F62FE;
+            --secondary: #FF6B00;
+            --bg: #F5F7FA;
+        }
+        @supports (padding: max(0px)) {
+            .safe-top { padding-top: max(44px, env(safe-area-inset-top)); }
+            .safe-bottom { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-[system-ui]" x-data="tasksApp()">
+    <div class="min-h-screen max-w-md mx-auto bg-gray-50 flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white safe-top fixed top-0 left-0 right-0 max-w-md mx-auto z-10">
+            <div class="px-4 py-3 flex items-center justify-between">
+                <h1 class="text-lg font-semibold flex items-center">
+                    任务 
+                    <span class="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-sm" x-text="tasks.length"></span>
+                </h1>
+                <button 
+                    @click="showSearch = !showSearch"
+                    data-testid="search-toggle"
+                    class="p-2 hover:bg-white/10 rounded-lg"
+                >
+                    <i class="uil uil-search text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- 搜索栏 -->
+            <div x-show="showSearch" x-transition class="px-4 pb-3">
+                <input 
+                    type="text"
+                    x-model="searchQuery"
+                    data-testid="search-input"
+                    placeholder="搜索房间号或任务内容..."
+                    class="w-full px-4 py-2 bg-white/10 backdrop-blur text-white placeholder-white/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/30"
+                >
+            </div>
+        </header>
+
+        <!-- 任务列表 -->
+        <main class="flex-1 pt-28 pb-20 px-4 overflow-y-auto scrollbar-hide">
+            <!-- 筛选标签 -->
+            <div class="flex space-x-2 mb-4">
+                <button 
+                    @click="filterStatus = 'all'"
+                    :class="filterStatus === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                    全部
+                </button>
+                <button 
+                    @click="filterStatus = 'pending'"
+                    :class="filterStatus === 'pending' ? 'bg-orange-500 text-white' : 'bg-white text-gray-700'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                    待处理
+                </button>
+                <button 
+                    @click="filterStatus = 'in_progress'"
+                    :class="filterStatus === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                    进行中
+                </button>
+            </div>
+
+            <!-- 任务卡片列表 -->
+            <div class="space-y-3">
+                <template x-for="task in filteredTasks" :key="task.id">
+                    <div 
+                        @click="goToTask(task.id)"
+                        data-testid="task-card"
+                        class="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center">
+                                <div 
+                                    :class="{
+                                        'bg-orange-100 text-orange-600': task.priority === 'high',
+                                        'bg-blue-100 text-blue-600': task.priority === 'medium',
+                                        'bg-gray-100 text-gray-600': task.priority === 'low'
+                                    }"
+                                    class="px-2 py-1 rounded text-xs font-medium"
+                                >
+                                    房间 <span x-text="task.room"></span>
+                                </div>
+                                <span 
+                                    :class="{
+                                        'text-orange-500': task.status === 'pending',
+                                        'text-blue-500': task.status === 'in_progress',
+                                        'text-green-500': task.status === 'completed'
+                                    }"
+                                    class="ml-2 text-xs font-medium"
+                                    x-text="getStatusText(task.status)"
+                                ></span>
+                            </div>
+                            <span class="text-xs text-gray-500" x-text="task.eta"></span>
+                        </div>
+                        
+                        <h3 class="text-gray-800 font-medium mb-1" x-text="task.title"></h3>
+                        <p class="text-sm text-gray-600 line-clamp-2" x-text="task.description"></p>
+                        
+                        <div class="mt-3 flex items-center justify-between">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="uil uil-clock mr-1"></i>
+                                <span x-text="task.createdTime"></span>
+                            </div>
+                            <button 
+                                @click.stop="startTask(task.id)"
+                                data-testid="start-button"
+                                x-show="task.status === 'pending'"
+                                class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                开始
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 空状态 -->
+            <div x-show="filteredTasks.length === 0" class="text-center py-20">
+                <i class="uil uil-clipboard-notes text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">暂无任务</p>
+            </div>
+        </main>
+
+        <!-- Bottom Tab -->
+        <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 max-w-md mx-auto safe-bottom">
+            <div class="flex justify-around py-2">
+                <button 
+                    data-testid="tab-tasks"
+                    class="flex-1 flex flex-col items-center py-2 text-blue-600"
+                >
+                    <i class="uil uil-clipboard-notes text-2xl mb-1"></i>
+                    <span class="text-xs">任务</span>
+                </button>
+                <button 
+                    @click="goToNotifications"
+                    data-testid="tab-notifications"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600 relative"
+                >
+                    <i class="uil uil-bell text-2xl mb-1"></i>
+                    <span class="text-xs">通知</span>
+                    <span x-show="unreadCount > 0" class="absolute top-0 right-1/3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        <span x-text="unreadCount"></span>
+                    </span>
+                </button>
+                <button 
+                    @click="goToSettings"
+                    data-testid="tab-settings"
+                    class="flex-1 flex flex-col items-center py-2 text-gray-400 hover:text-gray-600"
+                >
+                    <i class="uil uil-setting text-2xl mb-1"></i>
+                    <span class="text-xs">设置</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        // Mock数据
+        const MOCK_TASKS = [
+            { id: 1, room: '101', title: '需要额外毛巾', description: '客人要求送2条浴巾和1条面巾', status: 'pending', priority: 'high', eta: '5分钟', createdTime: '10:30' },
+            { id: 2, room: '208', title: '房间清洁', description: '客人外出，要求打扫房间并更换床单', status: 'in_progress', priority: 'medium', eta: '15分钟', createdTime: '10:25' },
+            { id: 3, room: '305', title: '空调维修', description: '空调制冷效果不好，需要检查', status: 'pending', priority: 'high', eta: '10分钟', createdTime: '10:20' },
+            { id: 4, room: '412', title: '送餐服务', description: '早餐：美式咖啡×2，三明治×2', status: 'completed', priority: 'low', eta: '-', createdTime: '09:45' }
+        ];
+
+        function tasksApp() {
+            return {
+                tasks: [...MOCK_TASKS],
+                searchQuery: '',
+                showSearch: false,
+                filterStatus: 'all',
+                unreadCount: 3,
+
+                get filteredTasks() {
+                    let filtered = this.tasks;
+                    
+                    // 状态筛选
+                    if (this.filterStatus !== 'all') {
+                        filtered = filtered.filter(task => task.status === this.filterStatus);
+                    }
+                    
+                    // 搜索筛选
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        filtered = filtered.filter(task => 
+                            task.room.includes(query) || 
+                            task.title.toLowerCase().includes(query) ||
+                            task.description.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    return filtered;
+                },
+
+                getStatusText(status) {
+                    const statusMap = {
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
+                    };
+                    return statusMap[status] || status;
+                },
+
+                goToTask(taskId) {
+                    console.log(`跳转到任务详情 /task/${taskId}`);
+                    window.location.href = `B-03-task-detail.html?taskId=${taskId}`;
+                },
+
+                startTask(taskId) {
+                    console.log(`开始任务 ${taskId}`);
+                    const task = this.tasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.status = 'in_progress';
+                        // 模拟 API 调用: PATCH /api/task/:id
+                        console.log(`PATCH /api/task/${taskId} { status: 'in_progress' }`);
+                    }
+                },
+
+                goToNotifications() {
+                    console.log('跳转到 /notifications');
+                    window.location.href = 'B-04-notifications.html';
+                },
+
+                goToSettings() {
+                    console.log('跳转到 /settings');
+                    window.location.href = 'B-05-settings.html';
+                }
+            };
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 页面编号: B-01 /login -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>员工登录 - 酒店管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <style>
+        :root {
+            --primary: #0F62FE;
+            --secondary: #FF6B00;
+            --bg: #F5F7FA;
+        }
+        /* 移动端安全区域适配 */
+        @supports (padding: max(0px)) {
+            .safe-top { padding-top: max(20px, env(safe-area-inset-top)); }
+            .safe-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-[system-ui]" x-data="loginApp()">
+    <div class="min-h-screen flex flex-col max-w-md mx-auto bg-white">
+        <!-- 顶部装饰 -->
+        <div class="bg-gradient-to-br from-blue-600 to-blue-700 text-white safe-top">
+            <div class="px-6 pb-20 pt-10">
+                <!-- Logo -->
+                <div class="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl mb-6 flex items-center justify-center">
+                    <i class="uil uil-building text-white text-3xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold mb-2">欢迎回来</h1>
+                <p class="text-blue-100">登录您的员工账号</p>
+            </div>
+            <!-- 波浪装饰 -->
+            <svg class="w-full -mb-1" viewBox="0 0 375 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 30V0C125 30 250 30 375 0V30H0Z" fill="white"/>
+            </svg>
+        </div>
+
+        <!-- 登录表单 -->
+        <div class="flex-1 px-6 pt-4">
+            <form @submit.prevent="handleLogin" class="space-y-5">
+                <!-- 用户名输入 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        用户名
+                    </label>
+                    <div class="relative">
+                        <i class="uil uil-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input 
+                            type="text" 
+                            x-model="username"
+                            data-testid="username-input"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="请输入员工号或用户名"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- 密码输入 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        密码
+                    </label>
+                    <div class="relative">
+                        <i class="uil uil-lock-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input 
+                            type="password" 
+                            x-model="password"
+                            data-testid="password-input"
+                            class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="请输入密码"
+                            required
+                        >
+                        <button 
+                            type="button"
+                            @click="showPassword = !showPassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                            <i :class="showPassword ? 'uil-eye-slash' : 'uil-eye'" class="uil text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 记住我 -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" x-model="rememberMe" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="ml-2 text-sm text-gray-600">记住我</span>
+                    </label>
+                    <a href="#" class="text-sm text-blue-600 hover:underline">忘记密码？</a>
+                </div>
+
+                <!-- 错误提示 -->
+                <div x-show="errorMessage" x-transition class="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p class="text-red-600 text-sm flex items-center">
+                        <i class="uil uil-exclamation-circle mr-2"></i>
+                        <span x-text="errorMessage"></span>
+                    </p>
+                </div>
+
+                <!-- 登录按钮 -->
+                <button 
+                    type="submit"
+                    data-testid="login-button"
+                    :disabled="loading"
+                    class="w-full py-4 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95"
+                >
+                    <span x-show="!loading">登录</span>
+                    <span x-show="loading" class="flex items-center justify-center">
+                        <i class="uil uil-spinner-alt animate-spin mr-2"></i>
+                        正在登录...
+                    </span>
+                </button>
+
+                <!-- SSO 登录选项 -->
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">或使用</span>
+                    </div>
+                </div>
+
+                <button 
+                    type="button"
+                    @click="handleSSOLogin"
+                    class="w-full py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center"
+                >
+                    <i class="uil uil-shield-check mr-2 text-blue-600"></i>
+                    统一身份认证 (SSO)
+                </button>
+            </form>
+        </div>
+
+        <!-- 底部信息 -->
+        <div class="px-6 pb-6 safe-bottom text-center">
+            <p class="text-xs text-gray-500">
+                © 2024 酒店管理系统 v2.0.0
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Mock数据
+        const MOCK_USERS = [
+            { username: 'staff001', password: '123456', name: '张三' },
+            { username: 'admin', password: 'admin123', name: '管理员' }
+        ];
+
+        function loginApp() {
+            return {
+                username: '',
+                password: '',
+                rememberMe: false,
+                showPassword: false,
+                errorMessage: '',
+                loading: false,
+
+                async handleLogin() {
+                    this.loading = true;
+                    this.errorMessage = '';
+
+                    try {
+                        // 模拟 OIDC 认证流程
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        const user = MOCK_USERS.find(u => 
+                            u.username === this.username && u.password === this.password
+                        );
+
+                        if (user) {
+                            // 成功 - 存储 token 并跳转
+                            localStorage.setItem('auth_token', 'mock_jwt_' + Date.now());
+                            localStorage.setItem('user_name', user.name);
+                            console.log('登录成功，跳转到 /tasks');
+                            alert(`登录成功！欢迎 ${user.name}`);
+                            setTimeout(() => {
+                                window.location.href = 'B-02-tasks.html';
+                            }, 1000);
+                        } else {
+                            this.errorMessage = '用户名或密码错误';
+                        }
+                    } catch (error) {
+                        this.errorMessage = '网络错误，请稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                handleSSOLogin() {
+                    console.log('跳转到 OIDC: /oidc/authorize');
+                    // 模拟 OIDC PKCE 流程
+                    const state = Math.random().toString(36).substring(7);
+                    const codeVerifier = Math.random().toString(36).substring(2);
+                    sessionStorage.setItem('oidc_state', state);
+                    sessionStorage.setItem('code_verifier', codeVerifier);
+                    
+                    // const redirectUrl = `/oidc/authorize?client_id=mobile-app&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&state=${state}`;
+                    alert('正在跳转到统一身份认证...');
+                }
+            };
+        }
+    </script>
+</body>
+</html> 
