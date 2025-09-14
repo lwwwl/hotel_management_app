@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/task.dart';
+import '../models/task_adapter.dart';
+import '../services/task_api_service.dart';
+import '../utils/task_status_flow.dart';
 import 'task_detail_page.dart';
 import 'notifications_page.dart';
 import 'settings_page.dart';
@@ -18,6 +20,8 @@ class _TasksPageState extends State<TasksPage> {
   bool _showSearch = false;
   String _filterStatus = 'all';
   final int _unreadCount = 3;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -25,10 +29,41 @@ class _TasksPageState extends State<TasksPage> {
     _loadTasks();
   }
 
-  void _loadTasks() {
+  Future<void> _loadTasks() async {
     setState(() {
-      _tasks = List.from(MockData.mockTasks);
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final response = await TaskApiService.getTaskList();
+      
+      if (response.isSuccess && response.data != null) {
+        final List<Task> allTasks = [];
+        
+        // 将所有列的任务合并到一个列表中
+        for (final column in response.data!) {
+          for (final taskItem in column.tasks) {
+            allTasks.add(TaskAdapter.fromTaskListItemBO(taskItem));
+          }
+        }
+        
+        setState(() {
+          _tasks = allTasks;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response.message;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = '加载失败: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   List<Task> get _filteredTasks {
@@ -36,7 +71,7 @@ class _TasksPageState extends State<TasksPage> {
 
     // 状态筛选
     if (_filterStatus != 'all') {
-      filtered = filtered.where((task) => task.status.name == _filterStatus).toList();
+      filtered = filtered.where((task) => _getStatusValue(task.status) == _filterStatus).toList();
     }
 
     // 搜索筛选
@@ -51,28 +86,60 @@ class _TasksPageState extends State<TasksPage> {
     return filtered;
   }
 
-  void _startTask(int taskId) {
-    setState(() {
-      final taskIndex = _tasks.indexWhere((task) => task.id == taskId);
-      if (taskIndex != -1) {
-        _tasks[taskIndex] = _tasks[taskIndex].copyWith(status: TaskStatus.inProgress);
-      }
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('任务已开始'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  /// 将TaskStatus枚举转换为API状态值
+  String _getStatusValue(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.pending:
+        return 'pending';
+      case TaskStatus.inProgress:
+        return 'in_progress';
+      case TaskStatus.review:
+        return 'review';
+      case TaskStatus.completed:
+        return 'completed';
+    }
   }
 
-  void _goToTask(int taskId) {
-    Navigator.of(context).push(
+  Future<void> _startTask(int taskId) async {
+    try {
+      final response = await TaskApiService.claimTask(taskId);
+      
+      if (response.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('工单认领成功，状态已更新为进行中'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // 重新加载工单列表数据
+        await _loadTasks();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('认领失败: ${response.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('认领失败: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _goToTask(int taskId) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => TaskDetailPage(taskId: taskId),
       ),
     );
+    // 从详情页面返回时刷新工单列表
+    await _loadTasks();
   }
 
   void _goToNotifications() {
@@ -188,21 +255,17 @@ class _TasksPageState extends State<TasksPage> {
                         _buildFilterChip('待处理', 'pending', Colors.orange),
                         const SizedBox(width: 8),
                         _buildFilterChip('进行中', 'in_progress', Colors.blue),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('待确认', 'review', Colors.purple),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('已完成', 'completed', Colors.green),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
                   // 任务卡片列表
                   Expanded(
-                    child: _filteredTasks.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            itemCount: _filteredTasks.length,
-                            itemBuilder: (context, index) {
-                              final task = _filteredTasks[index];
-                              return _buildTaskCard(task);
-                            },
-                          ),
+                    child: _buildTaskList(),
                   ),
                 ],
               ),
@@ -252,16 +315,46 @@ class _TasksPageState extends State<TasksPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getPriorityColor(task.priority).withOpacity(0.1),
+                      color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '房间 ${task.room}',
                       style: TextStyle(
-                        color: _getPriorityColor(task.priority),
+                        color: Colors.grey.shade700,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 优先级标签
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getPriorityColor(task.priority).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (task.priority == TaskPriority.urgent) ...[
+                          Icon(
+                            Icons.priority_high,
+                            size: 12,
+                            color: _getPriorityColor(task.priority),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          task.priority.displayName,
+                          style: TextStyle(
+                            color: _getPriorityColor(task.priority),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -339,6 +432,58 @@ class _TasksPageState extends State<TasksPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTaskList() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.red.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadTasks,
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_filteredTasks.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadTasks,
+      child: ListView.builder(
+        itemCount: _filteredTasks.length,
+        itemBuilder: (context, index) {
+          final task = _filteredTasks[index];
+          return _buildTaskCard(task);
+        },
       ),
     );
   }
@@ -445,6 +590,8 @@ class _TasksPageState extends State<TasksPage> {
 
   Color _getPriorityColor(TaskPriority priority) {
     switch (priority) {
+      case TaskPriority.urgent:
+        return Colors.red;
       case TaskPriority.high:
         return Colors.orange;
       case TaskPriority.medium:
@@ -460,8 +607,11 @@ class _TasksPageState extends State<TasksPage> {
         return Colors.orange;
       case TaskStatus.inProgress:
         return Colors.blue;
+      case TaskStatus.review:
+        return Colors.purple;
       case TaskStatus.completed:
         return Colors.green;
     }
   }
+
 }

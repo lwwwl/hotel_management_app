@@ -123,6 +123,7 @@ class TaskComment {
 enum TaskStatus {
   pending,
   inProgress,
+  review,
   completed,
 }
 
@@ -130,6 +131,7 @@ enum TaskPriority {
   low,
   medium,
   high,
+  urgent,
 }
 
 extension TaskStatusExtension on TaskStatus {
@@ -139,6 +141,8 @@ extension TaskStatusExtension on TaskStatus {
         return '待处理';
       case TaskStatus.inProgress:
         return '进行中';
+      case TaskStatus.review:
+        return '待确认';
       case TaskStatus.completed:
         return '已完成';
     }
@@ -154,6 +158,8 @@ extension TaskPriorityExtension on TaskPriority {
         return '中';
       case TaskPriority.high:
         return '高';
+      case TaskPriority.urgent:
+        return '紧急';
     }
   }
 }
