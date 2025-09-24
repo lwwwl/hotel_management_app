@@ -223,3 +223,113 @@ class TaskDetailBO {
     };
   }
 }
+
+// ==================== Notification Models ====================
+
+class NotificationListData {
+  final List<NotificationData> notifications;
+  final bool hasMore;
+  final int? lastNotificationId;
+  final int size;
+
+  NotificationListData({
+    required this.notifications,
+    required this.hasMore,
+    required this.lastNotificationId,
+    required this.size,
+  });
+
+  factory NotificationListData.fromJson(Map<String, dynamic> json) {
+    return NotificationListData(
+      notifications: (json['notifications'] as List<dynamic>? ?? [])
+          .map((e) => NotificationData.fromJson(e))
+          .toList(),
+      hasMore: json['hasMore'] ?? false,
+      lastNotificationId: json['lastNotificationId'],
+      size: json['size'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'notifications': notifications.map((e) => e.toJson()).toList(),
+      'hasMore': hasMore,
+      'lastNotificationId': lastNotificationId,
+      'size': size,
+    };
+  }
+}
+
+class NotificationData {
+  final int id;
+  final String title;
+  final String body;
+  final int? taskId;
+  final String notificationType;
+  final bool alreadyRead;
+  final int? createTime;
+
+  NotificationData({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.taskId,
+    required this.notificationType,
+    required this.alreadyRead,
+    required this.createTime,
+  });
+
+  factory NotificationData.fromJson(Map<String, dynamic> json) {
+    int? parseInt(dynamic value) {
+      if (value == null) {
+        return null;
+      }
+      if (value is int) {
+        return value;
+      }
+      if (value is num) {
+        return value.toInt();
+      }
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        return parsed;
+      }
+      return null;
+    }
+
+    bool parseBool(dynamic value) {
+      if (value is bool) {
+        return value;
+      }
+      if (value is num) {
+        return value != 0;
+      }
+      if (value is String) {
+        return value == '1' || value.toLowerCase() == 'true';
+      }
+      return false;
+    }
+
+    return NotificationData(
+      id: parseInt(json['id']) ?? 0,
+      title: json['title'] ?? '',
+      body: json['body'] ?? '',
+      taskId: parseInt(json['taskId']),
+      notificationType: json['notificationType'] ?? 'info',
+      alreadyRead: parseBool(json['alreadyRead']),
+      createTime: parseInt(json['createTime']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'body': body,
+      'taskId': taskId,
+      'notificationType': notificationType,
+      'alreadyRead': alreadyRead,
+      'createTime': createTime,
+    };
+  }
+}

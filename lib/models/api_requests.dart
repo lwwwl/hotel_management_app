@@ -78,3 +78,20 @@ class TaskChangeStatusRequest {
     };
   }
 }
+
+class NotificationListRequest {
+  final int? lastNotificationId;
+  final int size;
+
+  NotificationListRequest({
+    this.lastNotificationId,
+    this.size = 100,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (lastNotificationId != null) 'lastNotificationId': lastNotificationId,
+      'size': size,
+    };
+  }
+}

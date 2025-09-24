@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
+
 import '../models/notification.dart';
+import '../services/notification_api_service.dart';
+import 'settings_page.dart';
 import 'task_detail_page.dart';
 import 'tasks_page.dart';
-import 'settings_page.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -13,30 +14,112 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final ScrollController _scrollController = ScrollController();
   List<NotificationItem> _notifications = [];
+  bool _isInitialLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int? _lastNotificationId;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
+    _scrollController.addListener(_onScroll);
+    _fetchNotifications(reset: true);
   }
 
-  void _loadNotifications() {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchNotifications({bool reset = false}) async {
+    if (_isInitialLoading || _isLoadingMore) {
+      return;
+    }
+
+    if (reset) {
+      setState(() {
+        _isInitialLoading = true;
+        _errorMessage = null;
+        _hasMore = true;
+        _lastNotificationId = null;
+      });
+    } else {
+      if (!_hasMore) {
+        return;
+      }
+      setState(() {
+        _isLoadingMore = true;
+        _errorMessage = null;
+      });
+    }
+
+    final response = await NotificationApiService.getNotificationList(
+      lastNotificationId: reset ? null : _lastNotificationId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (response.isSuccess && response.data != null) {
+      final data = response.data!;
+      final fetched = data.notifications.map(NotificationItem.fromApi).toList();
+
+      setState(() {
+        if (reset) {
+          _notifications = fetched;
+        } else {
+          final existingIds = _notifications.map((e) => e.id).toSet();
+          for (final item in fetched) {
+            if (!existingIds.contains(item.id)) {
+              _notifications.add(item);
+            }
+          }
+        }
+        _hasMore = data.hasMore;
+        _lastNotificationId = data.lastNotificationId;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {
+        _errorMessage = response.error ?? response.message;
+      });
+    }
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
-      _notifications = List.from(MockData.mockNotifications);
+      if (reset) {
+        _isInitialLoading = false;
+      } else {
+        _isLoadingMore = false;
+      }
     });
   }
 
-  List<NotificationItem> get _todayNotifications {
-    return _notifications.where((n) => n.date == 'today').toList();
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) {
+      return;
+    }
+
+    final threshold = 200;
+    if (_scrollController.position.extentAfter < threshold) {
+      _fetchNotifications();
+    }
   }
 
-  List<NotificationItem> get _yesterdayNotifications {
-    return _notifications.where((n) => n.date == 'yesterday').toList();
+  Future<void> _refreshNotifications() async {
+    await _fetchNotifications(reset: true);
   }
 
   void _handleNotificationClick(NotificationItem notification) {
-    // 标记为已读
     setState(() {
       final index = _notifications.indexWhere((n) => n.id == notification.id);
       if (index != -1) {
@@ -44,7 +127,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
     });
 
-    // 如果有任务ID，跳转到任务详情
     if (notification.taskId != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -96,6 +178,31 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
+  List<_NotificationGroup> _buildNotificationGroups() {
+    final Map<String, List<NotificationItem>> grouped = {};
+    for (final item in _notifications) {
+      grouped.putIfAbsent(item.date, () => []).add(item);
+    }
+
+    final List<_NotificationGroup> groups = [];
+    if (grouped.containsKey('today')) {
+      groups.add(_NotificationGroup('today', grouped['today']!));
+    }
+    if (grouped.containsKey('yesterday')) {
+      groups.add(_NotificationGroup('yesterday', grouped['yesterday']!));
+    }
+
+    final otherKeys = grouped.keys
+        .where((key) => key != 'today' && key != 'yesterday')
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    for (final key in otherKeys) {
+      groups.add(_NotificationGroup(key, grouped[key]!));
+    }
+
+    return groups;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,34 +214,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
         title: const Text('通知中心'),
         actions: [
           TextButton(
-            onPressed: _markAllAsRead,
-            child: const Text(
+            onPressed: _notifications.isEmpty ? null : _markAllAsRead,
+            child: Text(
               '全部已读',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(
+                color: _notifications.isEmpty ? Colors.white60 : Colors.white,
+              ),
             ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // 通知列表
           Expanded(
-            child: _notifications.isEmpty
-                ? _buildEmptyState()
-                : ListView(
-                    children: [
-                      // 今天的通知
-                      if (_todayNotifications.isNotEmpty) ...[
-                        _buildSectionHeader('今天'),
-                        ..._todayNotifications.map((notification) => _buildNotificationItem(notification)),
-                      ],
-                      // 昨天的通知
-                      if (_yesterdayNotifications.isNotEmpty) ...[
-                        _buildSectionHeader('昨天'),
-                        ..._yesterdayNotifications.map((notification) => _buildNotificationItem(notification)),
-                      ],
-                    ],
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _refreshNotifications,
+              child: _buildNotificationContent(),
+            ),
           ),
         ],
       ),
@@ -142,12 +238,110 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildNotificationContent() {
+    if (_isInitialLoading && _notifications.isEmpty) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(
+            height: 300,
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_errorMessage != null && _notifications.isEmpty) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: 300,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage ?? '加载失败',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => _fetchNotifications(reset: true),
+                    child: const Text('重新加载'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_notifications.isEmpty) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: 300,
+            child: _buildEmptyState(),
+          ),
+        ],
+      );
+    }
+
+    final groups = _buildNotificationGroups();
+    final List<Widget> children = [];
+    for (final group in groups) {
+      children.add(_buildSectionHeader(group.dateKey));
+      children.addAll(group.items.map((notification) => _buildNotificationItem(notification)));
+    }
+
+    if (_isLoadingMore) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    } else if (!_hasMore) {
+      children.add(const SizedBox(height: 24));
+    }
+
+    return ListView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: children,
+    );
+  }
+
+  Widget _buildSectionHeader(String dateKey) {
+    final displayTitle = _resolveDisplayDate(dateKey);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.grey.shade100,
       child: Text(
-        title,
+        displayTitle,
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -182,7 +376,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // 通知图标
                 Container(
                   width: 40,
                   height: 40,
@@ -197,7 +390,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // 通知内容
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +436,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ],
                   ),
                 ),
-                // 未读标识
                 if (!notification.read)
                   Container(
                     width: 8,
@@ -337,23 +528,41 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Color _getNotificationColor(NotificationType type) {
     switch (type) {
-      case NotificationType.task:
-        return Colors.blue;
-      case NotificationType.urgent:
+      case NotificationType.alert:
         return Colors.orange;
-      case NotificationType.completed:
+      case NotificationType.success:
         return Colors.green;
+      case NotificationType.info:
+        return Colors.blue;
     }
   }
 
   IconData _getNotificationIcon(NotificationType type) {
     switch (type) {
-      case NotificationType.task:
-        return Icons.assignment_outlined;
-      case NotificationType.urgent:
+      case NotificationType.alert:
         return Icons.warning_outlined;
-      case NotificationType.completed:
+      case NotificationType.success:
         return Icons.check_circle_outline;
+      case NotificationType.info:
+        return Icons.notifications_none;
     }
+  }
+}
+
+class _NotificationGroup {
+  final String dateKey;
+  final List<NotificationItem> items;
+
+  _NotificationGroup(this.dateKey, this.items);
+}
+
+String _resolveDisplayDate(String dateKey) {
+  switch (dateKey) {
+    case 'today':
+      return '今天';
+    case 'yesterday':
+      return '昨天';
+    default:
+      return dateKey;
   }
 }

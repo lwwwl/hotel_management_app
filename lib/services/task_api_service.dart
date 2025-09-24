@@ -8,6 +8,8 @@ class TaskApiService {
   static const String baseUrl = 'http://localhost:7788';
   static const String userId = '1'; // 写死的用户ID
 
+  static Map<String, String> get headers => _headers;
+
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'X-User-Id': userId,
