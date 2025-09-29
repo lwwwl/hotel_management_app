@@ -112,37 +112,23 @@
                 </div>
             </div>
 
-            <!-- 备注区域 -->
-            <h3 class="font-medium text-gray-800 mb-3">处理备注</h3>
-            <div class="space-y-3 mb-4">
-                <template x-for="comment in task.comments" :key="comment.id">
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-sm font-medium text-gray-700" x-text="comment.author"></span>
-                            <span class="text-xs text-gray-500" x-text="comment.time"></span>
+            <!-- 操作日志 -->
+            <h3 class="font-medium text-gray-800 mb-3">操作日志</h3>
+            <div class="space-y-4">
+                <template x-for="log in operationLogs" :key="log.id">
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-gray-100 rounded-full p-2">
+                            <i class="uil uil-history text-gray-500"></i>
                         </div>
-                        <p class="text-sm text-gray-600" x-text="comment.text"></p>
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium" x-text="log.operatorUserDisplayName"></span>
+                                <span x-text="log.operateContent"></span>
+                            </p>
+                            <p class="text-xs text-gray-400" x-text="log.createTime"></p>
+                        </div>
                     </div>
                 </template>
-            </div>
-
-            <!-- 添加备注 -->
-            <div class="flex space-x-2">
-                <input 
-                    type="text"
-                    x-model="newComment"
-                    data-testid="comment-input"
-                    placeholder="添加备注..."
-                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                <button 
-                    @click="addComment"
-                    data-testid="add-comment"
-                    :disabled="!newComment.trim()"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    发送
-                </button>
             </div>
         </div>
 
@@ -204,11 +190,61 @@
             ]
         };
 
+        // 通用 API 请求模块
+        const apiClient = {
+            baseUrl: 'http://111.223.37.162:7788',
+            userId: '1', // 模拟当前登录用户
+
+            async post(endpoint, body) {
+                try {
+                    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-Id': this.userId,
+                        },
+                        body: JSON.stringify(body),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`网络响应错误: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.statusCode !== 200) {
+                        throw new Error(result.message || 'API 请求失败');
+                    }
+                    
+                    return result.data;
+                } catch (error) {
+                    console.error(`API请求 '${endpoint}' 失败:`, error);
+                    alert(`操作失败: ${error.message}`);
+                    throw error;
+                }
+            }
+        };
+
         function taskDetailApp() {
             return {
                 task: { ...MOCK_TASK },
-                newComment: '',
+                operationLogs: [],
                 showMore: false,
+
+                init() {
+                    this.fetchOperationLogs();
+                },
+
+                async fetchOperationLogs() {
+                    try {
+                        const logs = await apiClient.post('/task/operate-record/list', { 
+                            taskId: this.task.id 
+                        });
+                        this.operationLogs = logs || [];
+                    } catch(e) {
+                        // 错误已在 apiClient 中通过 alert 提示
+                    }
+                },
 
                 getStatusText(status) {
                     const statusMap = {
@@ -238,23 +274,6 @@
                 pauseTask() {
                     this.task.status = 'pending';
                     console.log('任务已暂停');
-                },
-
-                addComment() {
-                    if (!this.newComment.trim()) return;
-                    
-                    const comment = {
-                        id: Date.now(),
-                        author: '李四',
-                        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-                        text: this.newComment
-                    };
-                    
-                    this.task.comments.push(comment);
-                    this.newComment = '';
-                    
-                    // 模拟 API 调用
-                    console.log(`POST /api/task/${this.task.id}/comments`, comment);
                 },
 
                 goBack() {
