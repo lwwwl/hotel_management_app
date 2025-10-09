@@ -38,6 +38,12 @@ dependencies:
   # HTTP client for API requests
   http: ^1.1.0
 
+  # 用于处理 OIDC 认证流程
+  flutter_appauth: ^6.0.0
+
+  # 用于在设备上安全地存储令牌
+  flutter_secure_storage: ^9.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

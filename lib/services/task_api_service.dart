@@ -5,13 +5,16 @@ import '../models/api_requests.dart';
 import '../models/api_models.dart';
 
 class TaskApiService {
-  static const String baseUrl = 'http://localhost:7788';
+  const baseUrl = 'http://111.223.37.162:7788';
+  // const baseUrl = 'https://kefu.5ok.co/api/v1';
   static const String userId = '1'; // 写死的用户ID
 
   static Map<String, String> get headers => _headers;
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
+    // 直连IP的请求时，会用上写死的userId
+    // 当请求域名的url，走nginx会通过authelia_session解析出用户对应的userId并覆写这个X-User-Id请求头
     'X-User-Id': userId,
   };
 

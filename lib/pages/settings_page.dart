@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hotel_management_app/services/auth_service.dart';
 import '../data/mock_data.dart';
 import '../models/user.dart';
 import 'login_page.dart';
@@ -15,6 +16,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late User _currentUser;
   late UserSettings _settings;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -110,12 +112,14 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (route) => false,
-              );
+            onPressed: () async {
+              await _authService.signOut();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('确定'),
           ),
