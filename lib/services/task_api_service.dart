@@ -5,7 +5,7 @@ import '../models/api_requests.dart';
 import '../models/api_models.dart';
 
 class TaskApiService {
-  const baseUrl = 'http://111.223.37.162:7788';
+  static const baseUrl = 'http://111.223.37.162:7788';
   // const baseUrl = 'https://kefu.5ok.co/api/v1';
   static const String userId = '1'; // 写死的用户ID
 
