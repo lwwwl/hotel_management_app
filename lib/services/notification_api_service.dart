@@ -10,8 +10,6 @@ import 'task_api_service.dart';
 class NotificationApiService {
   static const String _baseUrl = TaskApiService.baseUrl;
 
-  static Map<String, String> get _headers => TaskApiService.headers;
-
   static Future<ApiResponse<NotificationListData>> getNotificationList({
     int? lastNotificationId,
     int size = 100,
@@ -22,10 +20,11 @@ class NotificationApiService {
     );
 
     try {
-      final url = Uri.parse('$_baseUrl/notification/list');
+      final requestHeaders = await TaskApiService.headers;
+      final url = Uri.parse('$_baseUrl/app/notification/list');
       final response = await http.post(
         url,
-        headers: _headers,
+        headers: requestHeaders,
         body: jsonEncode(request.toJson()),
       );
 

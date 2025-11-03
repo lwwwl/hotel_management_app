@@ -3,20 +3,23 @@ import 'package:http/http.dart' as http;
 import '../models/api_response.dart';
 import '../models/api_requests.dart';
 import '../models/api_models.dart';
+import 'auth_service.dart';
 
 class TaskApiService {
-  static const baseUrl = 'http://111.223.37.162:7788';
-  // const baseUrl = 'https://kefu.5ok.co/api/v1';
-  static const String userId = '1'; // 写死的用户ID
+  static const baseUrl = 'https://kefu.5ok.co';
+  // static const baseUrl = 'http://111.223.37.162:7788';
 
-  static Map<String, String> get headers => _headers;
-
-  static Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    // 直连IP的请求时，会用上写死的userId
-    // 当请求域名的url，走nginx会通过authelia_session解析出用户对应的userId并覆写这个X-User-Id请求头
-    'X-User-Id': userId,
-  };
+  /// 获取请求头（包含 Authorization token）
+  static Future<Map<String, String>> get headers async {
+    final authService = AuthService();
+    final token = await authService.getToken();
+    
+    return {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty)
+        'Authorization': 'Bearer $token',
+    };
+  }
 
   /// 获取工单列表
   static Future<ApiResponse<List<TaskListColumnBO>>> getTaskList({
@@ -36,9 +39,10 @@ class TaskApiService {
         priority: priority,
       );
 
+      final requestHeaders = await headers;
       final response = await http.post(
-        Uri.parse('$baseUrl/task/list'),
-        headers: _headers,
+        Uri.parse('$baseUrl/app/task/list'),
+        headers: requestHeaders,
         body: jsonEncode(request.toJson()),
       );
 
@@ -74,9 +78,10 @@ class TaskApiService {
     try {
       final request = TaskDetailRequest(taskId: taskId);
 
+      final requestHeaders = await headers;
       final response = await http.post(
-        Uri.parse('$baseUrl/task/detail'),
-        headers: _headers,
+        Uri.parse('$baseUrl/app/task/detail'),
+        headers: requestHeaders,
         body: jsonEncode(request.toJson()),
       );
 
@@ -110,9 +115,10 @@ class TaskApiService {
     try {
       final request = TaskClaimRequest(taskId: taskId);
 
+      final requestHeaders = await headers;
       final response = await http.post(
-        Uri.parse('$baseUrl/task/claim'),
-        headers: _headers,
+        Uri.parse('$baseUrl/app/task/claim'),
+        headers: requestHeaders,
         body: jsonEncode(request.toJson()),
       );
 
@@ -149,9 +155,10 @@ class TaskApiService {
         newTaskStatus: newStatus,
       );
 
+      final requestHeaders = await headers;
       final response = await http.post(
-        Uri.parse('$baseUrl/task/change-status'),
-        headers: _headers,
+        Uri.parse('$baseUrl/app/task/change-status'),
+        headers: requestHeaders,
         body: jsonEncode(request.toJson()),
       );
 
