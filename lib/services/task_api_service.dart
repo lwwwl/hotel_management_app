@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/api_response.dart';
 import '../models/api_requests.dart';
@@ -6,7 +7,7 @@ import '../models/api_models.dart';
 import 'auth_service.dart';
 
 class TaskApiService {
-  static const baseUrl = 'https://kefu.5ok.co';
+  static const baseUrl = 'https://kefu.5ok.co/api/v1';
   // static const baseUrl = 'http://111.223.37.162:7788';
 
   /// 获取请求头（包含 Authorization token）
@@ -39,12 +40,27 @@ class TaskApiService {
         priority: priority,
       );
 
+      final url = '$baseUrl/app/task/list';
       final requestHeaders = await headers;
+      final requestBody = jsonEncode(request.toJson());
+      
+      debugPrint('========== TASK LIST REQUEST ==========');
+      debugPrint('URL: $url');
+      debugPrint('Headers: $requestHeaders');
+      debugPrint('Body: $requestBody');
+      debugPrint('=======================================');
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/app/task/list'),
+        Uri.parse(url),
         headers: requestHeaders,
-        body: jsonEncode(request.toJson()),
+        body: requestBody,
       );
+      
+      debugPrint('========== TASK LIST RESPONSE ==========');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Headers: ${response.headers}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('========================================');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
@@ -77,13 +93,26 @@ class TaskApiService {
   static Future<ApiResponse<TaskDetailBO>> getTaskDetail(int taskId) async {
     try {
       final request = TaskDetailRequest(taskId: taskId);
-
+      final url = '$baseUrl/app/task/detail';
       final requestHeaders = await headers;
+      final requestBody = jsonEncode(request.toJson());
+      
+      debugPrint('========== TASK DETAIL REQUEST ==========');
+      debugPrint('URL: $url');
+      debugPrint('Headers: $requestHeaders');
+      debugPrint('Body: $requestBody');
+      debugPrint('=========================================');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/app/task/detail'),
+        Uri.parse(url),
         headers: requestHeaders,
-        body: jsonEncode(request.toJson()),
+        body: requestBody,
       );
+      
+      debugPrint('========== TASK DETAIL RESPONSE ==========');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('==========================================');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
@@ -114,13 +143,25 @@ class TaskApiService {
   static Future<ApiResponse<String>> claimTask(int taskId) async {
     try {
       final request = TaskClaimRequest(taskId: taskId);
-
+      final url = '$baseUrl/app/task/claim';
       final requestHeaders = await headers;
+      final requestBody = jsonEncode(request.toJson());
+      
+      debugPrint('========== CLAIM TASK REQUEST ==========');
+      debugPrint('URL: $url');
+      debugPrint('Body: $requestBody');
+      debugPrint('========================================');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/app/task/claim'),
+        Uri.parse(url),
         headers: requestHeaders,
-        body: jsonEncode(request.toJson()),
+        body: requestBody,
       );
+      
+      debugPrint('========== CLAIM TASK RESPONSE ==========');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('=========================================');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
@@ -154,13 +195,25 @@ class TaskApiService {
         taskId: taskId,
         newTaskStatus: newStatus,
       );
-
+      final url = '$baseUrl/app/task/change-status';
       final requestHeaders = await headers;
+      final requestBody = jsonEncode(request.toJson());
+      
+      debugPrint('========== CHANGE STATUS REQUEST ==========');
+      debugPrint('URL: $url');
+      debugPrint('Body: $requestBody');
+      debugPrint('===========================================');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/app/task/change-status'),
+        Uri.parse(url),
         headers: requestHeaders,
-        body: jsonEncode(request.toJson()),
+        body: requestBody,
       );
+      
+      debugPrint('========== CHANGE STATUS RESPONSE ==========');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('============================================');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);

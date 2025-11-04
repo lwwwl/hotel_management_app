@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/api_models.dart';
@@ -21,12 +22,25 @@ class NotificationApiService {
 
     try {
       final requestHeaders = await TaskApiService.headers;
-      final url = Uri.parse('$_baseUrl/app/notification/list');
+      final url = '$_baseUrl/app/notification/list';
+      final requestBody = jsonEncode(request.toJson());
+      
+      debugPrint('========== NOTIFICATION LIST REQUEST ==========');
+      debugPrint('URL: $url');
+      debugPrint('Headers: $requestHeaders');
+      debugPrint('Body: $requestBody');
+      debugPrint('===============================================');
+      
       final response = await http.post(
-        url,
+        Uri.parse(url),
         headers: requestHeaders,
-        body: jsonEncode(request.toJson()),
+        body: requestBody,
       );
+      
+      debugPrint('========== NOTIFICATION LIST RESPONSE ==========');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('================================================');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);

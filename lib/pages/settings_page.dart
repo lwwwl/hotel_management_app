@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:hotel_management_app/services/auth_service.dart';
 import '../data/mock_data.dart';
 import '../models/user.dart';
+import '../models/user_detail.dart';
+import '../services/user_api_service.dart';
 import 'login_page.dart';
 import 'tasks_page.dart';
 import 'notifications_page.dart';
+import 'change_password_page.dart';
+import 'profile_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -14,9 +18,11 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  late User _currentUser;
+  UserDetail? _userDetail;
   late UserSettings _settings;
   final AuthService _authService = AuthService();
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -24,11 +30,38 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadUserData();
   }
 
-  void _loadUserData() {
+  /// 加载用户数据（从真实接口）
+  Future<void> _loadUserData() async {
     setState(() {
-      _currentUser = MockData.mockUsers.first;
-      _settings = MockData.defaultSettings;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final response = await UserApiService.getUserDetail();
+      
+      if (mounted) {
+        if (response.isSuccess && response.data != null) {
+          setState(() {
+            _userDetail = response.data;
+            _settings = MockData.defaultSettings; // 设置数据暂时用mock
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = response.message;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = '加载用户信息失败: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _changeLanguage(String? value) {
@@ -128,20 +161,35 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _goToProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('个人资料页面（待开发）'),
+  /// 跳转到个人资料页面
+  Future<void> _goToProfile() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ProfilePage(),
       ),
     );
+    
+    // 返回后刷新用户信息
+    _loadUserData();
   }
 
-  void _goToPassword() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('修改密码页面（待开发）'),
+  /// 跳转到修改密码页面
+  Future<void> _goToPassword() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ChangePasswordPage(),
       ),
     );
+    
+    // 如果修改密码成功，可以选择刷新用户信息
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('密码已修改，请妥善保管'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _goToTasks() {
@@ -180,8 +228,45 @@ class _SettingsPageState extends State<SettingsPage> {
         elevation: 0,
         centerTitle: true,
         title: const Text('设置'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadUserData,
+            tooltip: '刷新',
+          ),
+        ],
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red.shade300,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _loadUserData,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('重试'),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
         children: [
           // 用户信息
           Container(
@@ -212,7 +297,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _currentUser.name,
+                        _userDetail?.name ?? '未知用户',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -221,7 +306,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _currentUser.role,
+                        _userDetail?.roleDescription ?? '无角色',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,
@@ -229,7 +314,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '工号: ${_currentUser.id}',
+                        '工号: ${_userDetail?.employeeNumber ?? _userDetail?.userId.toString() ?? '未知'}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade500,

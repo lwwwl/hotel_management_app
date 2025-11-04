@@ -48,10 +48,30 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (context) => const TasksPage()),
         );
       } else {
+        // 显示详细的错误信息
+        final errorMsg = result.errorMessage ?? '登录失败，请重试';
+        print('登录失败UI层: $errorMsg');
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.errorMessage ?? '登录失败，请重试'),
+            content: Text(errorMsg),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5), // 延长显示时间以便查看
+          ),
+        );
+        
+        // 同时在调试模式下显示Dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('登录失败详情'),
+            content: SelectableText(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('确定'),
+              ),
+            ],
           ),
         );
       }
